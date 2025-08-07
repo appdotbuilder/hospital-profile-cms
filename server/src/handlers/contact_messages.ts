@@ -1,3 +1,5 @@
+import { db } from '../db';
+import { contactMessagesTable } from '../db/schema';
 import { 
   type CreateContactMessageInput, 
   type UpdateContactMessageInput, 
@@ -6,52 +8,95 @@ import {
   type GetByIdInput,
   type PaginationInput 
 } from '../schema';
+import { eq, desc } from 'drizzle-orm';
 
 export async function createContactMessage(input: CreateContactMessageInput): Promise<ContactMessage> {
-  // This is a placeholder declaration! Real code should be implemented here.
-  // The goal of this handler is creating a new contact message and persisting it in the database.
-  return Promise.resolve({
-    id: 0, // Placeholder ID
-    name: input.name,
-    email: input.email,
-    phone: input.phone,
-    subject: input.subject,
-    message: input.message,
-    is_read: false,
-    created_at: new Date()
-  } as ContactMessage);
+  try {
+    const result = await db.insert(contactMessagesTable)
+      .values({
+        name: input.name,
+        email: input.email,
+        phone: input.phone,
+        subject: input.subject,
+        message: input.message,
+        is_read: false // Default value for new messages
+      })
+      .returning()
+      .execute();
+
+    return result[0];
+  } catch (error) {
+    console.error('Contact message creation failed:', error);
+    throw error;
+  }
 }
 
 export async function getContactMessages(input?: PaginationInput): Promise<ContactMessage[]> {
-  // This is a placeholder declaration! Real code should be implemented here.
-  // The goal of this handler is fetching all contact messages for admin panel with optional pagination.
-  // Should be ordered by created_at DESC for newest messages first.
-  return [];
+  try {
+    // Apply defaults if input not provided
+    const page = input?.page || 1;
+    const limit = input?.limit || 10;
+    const offset = (page - 1) * limit;
+
+    const results = await db.select()
+      .from(contactMessagesTable)
+      .orderBy(desc(contactMessagesTable.created_at))
+      .limit(limit)
+      .offset(offset)
+      .execute();
+
+    return results;
+  } catch (error) {
+    console.error('Contact messages fetch failed:', error);
+    throw error;
+  }
 }
 
 export async function getContactMessageById(input: GetByIdInput): Promise<ContactMessage | null> {
-  // This is a placeholder declaration! Real code should be implemented here.
-  // The goal of this handler is fetching a specific contact message by ID.
-  return null;
+  try {
+    const results = await db.select()
+      .from(contactMessagesTable)
+      .where(eq(contactMessagesTable.id, input.id))
+      .execute();
+
+    return results.length > 0 ? results[0] : null;
+  } catch (error) {
+    console.error('Contact message fetch by ID failed:', error);
+    throw error;
+  }
 }
 
 export async function markContactMessageAsRead(input: UpdateContactMessageInput): Promise<ContactMessage> {
-  // This is a placeholder declaration! Real code should be implemented here.
-  // The goal of this handler is marking a contact message as read/unread in the database.
-  return Promise.resolve({
-    id: input.id,
-    name: 'Contact Name',
-    email: 'contact@example.com',
-    phone: '123456789',
-    subject: 'Contact Subject',
-    message: 'Contact message',
-    is_read: input.is_read,
-    created_at: new Date()
-  } as ContactMessage);
+  try {
+    const result = await db.update(contactMessagesTable)
+      .set({
+        is_read: input.is_read
+      })
+      .where(eq(contactMessagesTable.id, input.id))
+      .returning()
+      .execute();
+
+    if (result.length === 0) {
+      throw new Error(`Contact message with ID ${input.id} not found`);
+    }
+
+    return result[0];
+  } catch (error) {
+    console.error('Contact message update failed:', error);
+    throw error;
+  }
 }
 
 export async function deleteContactMessage(input: DeleteByIdInput): Promise<{ success: boolean }> {
-  // This is a placeholder declaration! Real code should be implemented here.
-  // The goal of this handler is deleting a contact message from the database.
-  return { success: true };
+  try {
+    const result = await db.delete(contactMessagesTable)
+      .where(eq(contactMessagesTable.id, input.id))
+      .returning()
+      .execute();
+
+    return { success: result.length > 0 };
+  } catch (error) {
+    console.error('Contact message deletion failed:', error);
+    throw error;
+  }
 }
